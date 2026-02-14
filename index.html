@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>彩の国21世紀郷土かるた 読み手 (VOICEVOX対応版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Serif JP', serif;
+            background-color: #f3f4f6;
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .yomifuda-container {
+            min-height: 240px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            border: 8px solid #374151;
+            border-radius: 12px;
+            position: relative;
+        }
+        .kimariji-large {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #dc2626;
+            border: 3px solid #dc2626;
+            border-radius: 50%;
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #fff;
+        }
+    </style>
+</head>
+<body class="text-gray-800 flex flex-col items-center min-h-screen p-4 pb-20">
+
+    <header class="w-full max-w-lg mb-4 text-center">
+        <h1 class="text-2xl md:text-3xl font-bold text-indigo-900 mb-2">彩の国21世紀郷土かるた<br>読み手</h1>
+    </header>
+
+    <!-- Audio Loader Section -->
+    <div class="w-full max-w-lg bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 text-sm">
+        <h2 class="font-bold text-indigo-800 mb-2 flex items-center">
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+            読み上げ音声の設定
+        </h2>
+        <p class="mb-3 text-gray-600">
+            VOICEVOXで書き出した音声ファイル(.wav/.mp3)を読み込むと、その声で再生します。<br>
+            <span class="text-xs text-gray-500">※未設定の場合は機械音声で読み上げます。</span>
+        </p>
+        
+        <label class="block w-full cursor-pointer bg-white border-2 border-dashed border-indigo-300 hover:border-indigo-500 rounded-lg p-4 text-center transition">
+            <span class="text-indigo-600 font-bold">📂 音声フォルダ/ファイルを選択</span>
+            <input type="file" id="audioFolderInput" class="hidden" webkitdirectory multiple />
+        </label>
+        <div id="fileStatus" class="mt-2 text-xs text-center text-gray-500 font-bold">
+            音声ファイル: 未ロード
+        </div>
+    </div>
+
+    <main class="w-full max-w-lg">
+        <!-- Card Display -->
+        <div id="displayArea" class="yomifuda-container card-shadow p-6 mb-6 relative transition-all duration-300">
+            <div id="kimarijiDisplay" class="kimariji-large opacity-0">?</div>
+            <div id="textDisplay" class="text-2xl md:text-3xl font-bold text-center leading-relaxed tracking-wider px-2">
+                準備完了
+            </div>
+            <div id="subTextDisplay" class="text-sm text-gray-500 mt-6 absolute bottom-4">
+                「読み上げ開始」を押してください
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="bg-white p-5 rounded-xl card-shadow mb-6">
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
+                <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <div class="flex justify-between text-sm text-gray-500 mb-4">
+                <span id="counter">0 / 46 枚</span>
+                <span id="statusText">待機中</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <button id="nextBtn" onclick="readNextCard()" class="col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg text-lg shadow-lg transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                    読み上げ開始
+                </button>
+                <button id="replayBtn" onclick="replayCard()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg shadow transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    もう一度聞く
+                </button>
+                <button onclick="resetGame()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg shadow transition">
+                    リセット
+                </button>
+            </div>
+
+            <div class="flex items-center justify-between border-t pt-4">
+                <label class="flex items-center cursor-pointer select-none">
+                    <input type="checkbox" id="readTwiceCheck" class="form-checkbox h-5 w-5 text-indigo-600 rounded">
+                    <span class="ml-2 text-gray-700 font-medium">2回読む</span>
+                </label>
+                
+                <div class="flex flex-col items-end">
+                    <label class="flex items-center cursor-pointer select-none mb-1">
+                        <input type="checkbox" id="autoPlayCheck" class="form-checkbox h-4 w-4 text-green-600 rounded">
+                        <span class="ml-2 text-gray-700 text-sm">自動送り</span>
+                    </label>
+                    <div class="flex items-center">
+                        <span class="text-xs text-gray-500 mr-2">間隔: <span id="intervalDisplay">3</span>秒</span>
+                        <input type="range" id="intervalRange" min="2" max="10" step="1" value="3" class="w-20" disabled>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History -->
+        <div class="bg-white p-4 rounded-xl card-shadow">
+            <h3 class="font-bold text-gray-700 mb-2 border-b pb-1">読まれた札</h3>
+            <div id="historyList" class="flex flex-wrap gap-2 text-lg min-h-[50px]">
+                <span class="text-gray-400 text-sm py-2">履歴はここに表示されます</span>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-8 text-gray-500 text-xs text-center pb-8">
+        &copy; Saitama Kyodo Karuta Reader<br>
+        データ出典: 彩の国21世紀郷土かるた
+    </footer>
+
+    <script>
+        // VOICEVOXプロジェクトファイルから抽出した正確な読みデータを基に構築
+        const karutaData = [
+            { kana: "あ", text: "朝露に ぬれて輝く 古代蓮", reading: "あさつゆに ぬれてかがやく こだいはす" },
+            { kana: "い", text: "いざ出陣 太平めざし 直実公", reading: "いざしゅつじん たいへいめざし なおざねこう" },
+            { kana: "う", text: "宇宙まで 夢を届けた 若田光一", reading: "うちゅうまで ゆめをとどけた わかたこういち" },
+            { kana: "え", text: "栄一も 食べたネギ入り にぼうとう", reading: "えいいちも たべたねぎいり にぼうとう" },
+            { kana: "お", text: "おりづるに 願いを込めて 小川和紙", reading: "おりづるに ねがいをこめて おがわわし" },
+            { kana: "か", text: "川越の 音なりひびく 時の鐘", reading: "かわごえの おとなりひびく ときのかね" },
+            { kana: "き", text: "巾着田 真っ赤に染める 彼岸花", reading: "きんちゃくだ まっかにそめる ひがんばな" },
+            { kana: "く", text: "雲よりも 高く飛んでけ シラコバト", reading: "くもよりも たかくとんでけ しらこばと" },
+            { kana: "け", text: "ケヤキの木 セミも木陰の 夏休み", reading: "けやきのき せみもこかげの なつやすみ" },
+            { kana: "こ", text: "古墳群 武蔵の豪族 眠る墓", reading: "こふんぐん むさしのごうぞく ねむるはか" },
+            { kana: "さ", text: "サクラソウ かれんに優しく 県の花", reading: "さくらそう かれんにやさしく けんのはな" },
+            { kana: "し", text: "初夏つつじ 秋は紅葉の 両神山", reading: "しょかつつじ あきはこうようの りょうかみさん" },
+            { kana: "す", text: "澄み切った 空に向かって 竜の舞", reading: "すみきった そらにむかって りゅうのまい" },
+            { kana: "せ", text: "清流に 生きながらえよ ムサシトミヨ", reading: "せいりゅうに いきながらえよ むさしとみよ" },
+            { kana: "そ", text: "そびえ立つ 高山不動 大イチョウ", reading: "そびえたつ たかやまふどう おおいちょう" },
+            { kana: "た", text: "体育祭 秩父音頭で 盛り上がる", reading: "たいいくさい ちちぶおんどで もりあがる" },
+            { kana: "ち", text: "町民が 歌舞伎役者の 小鹿野町", reading: "ちょうみんが かぶきやくしゃの おがのまち" },
+            { kana: "つ", text: "通船堀 江戸まで結ぶ 川の道", reading: "つうせんぼり えどまでむすぶ かわのみち" },
+            { kana: "て", text: "伝統の ささら獅子舞 受け継ぐ子", reading: "でんとうの ささらししまい うけつぐこ" },
+            { kana: "と", text: "遠い旅 道筋語る 利根の水", reading: "とおいたび みちすじかたる とねのみず" },
+            { kana: "な", text: "夏の夜 鉢形城に 咲く花火", reading: "なつのよる はちがたじょうに さくはなび" },
+            { kana: "に", text: "にらめっこ 武州だるまの 目を入れて", reading: "にらめっこ ぶしゅうだるまの めをいれて" },
+            { kana: "ぬ", text: "ぬくもりが 藤からあふれる 玉敷神社", reading: "ぬくもりが ふじからあふれる たましきじんじゃ" },
+            { kana: "ね", text: "眠りから さめたオニバス 北川辺", reading: "ねむりから さめたおにばす きたかわべ" },
+            { kana: "の", text: "農民の 苦しみの形 秩父事件", reading: "のうみんの くるしみのかたち ちちぶじけん" },
+            { kana: "は", text: "版木にて 歴史を刻み 名を残す", reading: "はんぎにて れきしをきざみ なをのこす" },
+            { kana: "ひ", text: "百穴の 自然の宝庫 ひかり苔", reading: "ひゃくあなの しぜんのほうこ ひかりごけ" },
+            { kana: "ふ", text: "ふるさとの 桜の名所 権現堂", reading: "ふるさとの さくらのめいしょ ごんげんどう" },
+            { kana: "へ", text: "ベーゴマは 鋳物のふるさと 川口産", reading: "べーごまは いものふるさと かわぐちさん" },
+            { kana: "ほ", text: "ホイッスル 響け心の スタジアム", reading: "ほいっする ひびけこころの すたじあむ" },
+            { kana: "ま", text: "まが玉は 過去と未来の 首飾り", reading: "まがたまは かことみらいの くびかざり" },
+            { kana: "み", text: "見沼の田 歴史を映し 空かつぐ", reading: "みぬまのた れきしをうつし そらかつぐ" },
+            { kana: "む", text: "武蔵野の 面影残る 平林寺", reading: "むさしのの おもかげのこる へいりんじ" },
+            { kana: "め", text: "メロディに ふるさとのせて 下總皖一", reading: "めろでぃに ふるさとのせて しもおさかんいち" },
+            { kana: "も", text: "森の中 トトロをさがす 大冒険", reading: "もりのなか ととろをさがす だいぼうけん" },
+            { kana: "や", text: "流鏑馬で 矢を射る子らの 武者姿", reading: "やぶさめで やをいるこらの むしゃすがた" },
+            { kana: "ゆ", text: "夢の森 笑顔あふれる ミューズパーク", reading: "ゆめのもり えがおあふれる みゅーずぱーく" },
+            { kana: "よ", text: "嫁に行く 娘に親から 桐タンス", reading: "よめにいく むすめにおやから きりたんす" },
+            { kana: "ら", text: "羅漢様 どこか似ている 友だちに", reading: "らかんさま どこかにている ともだちに" },
+            { kana: "り", text: "林業に 命捧げた 本多静六", reading: "りんぎょうに いのちささげた ほんだせいろく" },
+            { kana: "る", text: "ループ橋 雁坂越えて 桃の里", reading: "るーぷきょう かりさかこえて もものさと" },
+            { kana: "れ", text: "連綿と 催馬楽神楽 響きあり", reading: "れんめんと さいばらかぐら ひびきあり" },
+            { kana: "ろ", text: "ローム層 赤土吹き上げ 風に舞う", reading: "ろーむそう あかつちふきあげ かぜにまう" },
+            { kana: "わ", text: "和装の美 今に伝える ひな人形", reading: "わそうのび いまにつたえる ひなにんぎょう" },
+            { kana: "を", text: "女医一号 未来を開いた 荻野吟子", reading: "じょいいちごう みらいをひらいた おぎのぎんこ" },
+            { kana: "ん", text: "シンボルは さいたまアリーナ 新都心", reading: "しんぼるは さいたまありーな しんとしん" }
+        ];
+
+        let deck = [];
+        let currentIndex = -1;
+        let isPlaying = false;
+        let isSpeaking = false;
+        let audioBlobs = {}; // { kana: BlobURL }
+        let autoPlayTimer = null;
+        let currentAudio = null;
+
+        // Elements
+        const displayArea = document.getElementById('displayArea');
+        const textDisplay = document.getElementById('textDisplay');
+        const kimarijiDisplay = document.getElementById('kimarijiDisplay');
+        const subTextDisplay = document.getElementById('subTextDisplay');
+        const nextBtn = document.getElementById('nextBtn');
+        const replayBtn = document.getElementById('replayBtn');
+        const counter = document.getElementById('counter');
+        const statusText = document.getElementById('statusText');
+        const historyList = document.getElementById('historyList');
+        const progressBar = document.getElementById('progressBar');
+        const readTwiceCheck = document.getElementById('readTwiceCheck');
+        const autoPlayCheck = document.getElementById('autoPlayCheck');
+        const intervalRange = document.getElementById('intervalRange');
+        const intervalDisplay = document.getElementById('intervalDisplay');
+        const audioFolderInput = document.getElementById('audioFolderInput');
+        const fileStatus = document.getElementById('fileStatus');
+
+        function init() {
+            resetGame();
+
+            // Audio file loader
+            audioFolderInput.addEventListener('change', handleFileSelect);
+
+            // Auto play settings
+            autoPlayCheck.addEventListener('change', (e) => {
+                intervalRange.disabled = !e.target.checked;
+                if (!e.target.checked && autoPlayTimer) {
+                    clearTimeout(autoPlayTimer);
+                }
+            });
+            
+            intervalRange.addEventListener('input', (e) => {
+                intervalDisplay.innerText = e.target.value;
+            });
+        }
+
+        // Handle File Selection (VOICEVOX export files)
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+
+            let loadedCount = 0;
+            
+            // Clear existing blobs to avoid memory leaks
+            for(let key in audioBlobs) {
+                URL.revokeObjectURL(audioBlobs[key]);
+            }
+            audioBlobs = {};
+
+            Array.from(files).forEach(file => {
+                const fileName = file.name;
+                // Normalize file name: remove numbers like '001_' and spaces
+                const cleanName = fileName.replace(/^\d+[-_]?/, '').replace(/\s+/g, '');
+                
+                // Find matching card
+                const match = karutaData.find(card => {
+                    const cleanReading = card.reading.replace(/\s+/g, '');
+                    // Check if file name starts with the reading (ignoring extensions)
+                    return cleanName.startsWith(cleanReading) || 
+                           cleanName.includes(cleanReading) ||
+                           // Fallback: simple kana match if user renamed files to "あ.wav" etc.
+                           cleanName.startsWith(card.kana + ".");
+                });
+
+                if (match) {
+                    audioBlobs[match.kana] = URL.createObjectURL(file);
+                    loadedCount++;
+                }
+            });
+
+            if (loadedCount > 0) {
+                fileStatus.innerHTML = `<span class="text-green-600">✔ ${loadedCount}個の音声をロードしました</span>`;
+                fileStatus.classList.add('animate-pulse');
+                setTimeout(() => fileStatus.classList.remove('animate-pulse'), 1000);
+            } else {
+                fileStatus.innerHTML = `<span class="text-red-500">⚠ ファイル名と読み札が一致しませんでした</span>`;
+            }
+        }
+
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function resetGame() {
+            stopAllAudio();
+            deck = shuffle([...karutaData]);
+            currentIndex = -1;
+            isPlaying = false;
+            
+            textDisplay.innerText = "準備完了";
+            textDisplay.classList.remove('text-indigo-900');
+            kimarijiDisplay.classList.add('opacity-0');
+            kimarijiDisplay.innerText = "";
+            subTextDisplay.innerText = "「読み上げ開始」を押してください";
+            
+            nextBtn.innerText = "読み上げ開始";
+            nextBtn.disabled = false;
+            replayBtn.disabled = true;
+            
+            historyList.innerHTML = '<span class="text-gray-400 text-sm py-2">履歴はここに表示されます</span>';
+            updateProgress();
+            statusText.innerText = "待機中";
+            
+            clearTimeout(autoPlayTimer);
+        }
+
+        function updateProgress() {
+            const currentNum = currentIndex + 1;
+            const total = deck.length;
+            counter.innerText = `${currentNum} / ${total} 枚`;
+            const percent = (currentNum / total) * 100;
+            progressBar.style.width = `${percent}%`;
+        }
+
+        function stopAllAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            if (window.speechSynthesis.speaking) {
+                window.speechSynthesis.cancel();
+            }
+            if (autoPlayTimer) {
+                clearTimeout(autoPlayTimer);
+            }
+            isSpeaking = false;
+        }
+
+        function readNextCard() {
+            stopAllAudio();
+
+            if (currentIndex >= deck.length - 1) {
+                textDisplay.innerText = "終了しました";
+                subTextDisplay.innerText = "リセットボタンで最初から";
+                statusText.innerText = "終了";
+                nextBtn.disabled = true;
+                replayBtn.disabled = true;
+                return;
+            }
+
+            isPlaying = true;
+            currentIndex++;
+            const card = deck[currentIndex];
+            
+            updateUIForCard(card);
+            addToHistory(card);
+            
+            nextBtn.innerText = "次の札へ";
+            replayBtn.disabled = false;
+
+            speakCard(card);
+        }
+
+        function updateUIForCard(card) {
+            textDisplay.innerText = card.text;
+            textDisplay.classList.add('text-indigo-900');
+            kimarijiDisplay.innerText = card.kana;
+            kimarijiDisplay.classList.remove('opacity-0');
+            subTextDisplay.innerText = "詠み中...";
+            updateProgress();
+        }
+
+        function addToHistory(card) {
+            if (currentIndex === 0) {
+                historyList.innerHTML = '';
+            }
+            const badge = document.createElement('span');
+            badge.className = "inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100 text-indigo-800 font-bold border border-indigo-200 shadow-sm mb-1";
+            badge.innerText = card.kana;
+            historyList.prepend(badge);
+        }
+
+        function replayCard() {
+            if (currentIndex >= 0 && currentIndex < deck.length) {
+                stopAllAudio();
+                speakCard(deck[currentIndex]);
+            }
+        }
+
+        function speakCard(card) {
+            isSpeaking = true;
+            statusText.innerText = "詠み上げ中...";
+            displayArea.classList.add('border-indigo-500');
+
+            const readTwice = readTwiceCheck.checked;
+            const audioUrl = audioBlobs[card.kana];
+
+            if (audioUrl) {
+                // Play Audio File (VOICEVOX)
+                playAudioFile(audioUrl, readTwice);
+            } else {
+                // Fallback to Web Speech API
+                playWebSpeech(card.reading, readTwice);
+            }
+        }
+
+        function playAudioFile(url, readTwice) {
+            currentAudio = new Audio(url);
+            
+            currentAudio.onended = () => {
+                if (readTwice) {
+                    statusText.innerText = "待機中(2回目)...";
+                    // 1 second pause
+                    autoPlayTimer = setTimeout(() => {
+                        currentAudio = new Audio(url);
+                        currentAudio.onended = finishReading;
+                        currentAudio.play();
+                    }, 1000);
+                } else {
+                    finishReading();
+                }
+            };
+
+            currentAudio.play().catch(e => {
+                console.error("Playback error:", e);
+                statusText.innerText = "再生エラー";
+                finishReading();
+            });
+        }
+
+        function playWebSpeech(text, readTwice) {
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'ja-JP';
+            utter.rate = 1.0; 
+
+            utter.onend = () => {
+                if (readTwice) {
+                    autoPlayTimer = setTimeout(() => {
+                        const utter2 = new SpeechSynthesisUtterance(text);
+                        utter2.lang = 'ja-JP';
+                        utter2.onend = finishReading;
+                        window.speechSynthesis.speak(utter2);
+                    }, 1000);
+                } else {
+                    finishReading();
+                }
+            };
+            
+            window.speechSynthesis.speak(utter);
+        }
+
+        function finishReading() {
+            isSpeaking = false;
+            statusText.innerText = "詠み終わり";
+            subTextDisplay.innerText = "取り終わったら次へ";
+            displayArea.classList.remove('border-indigo-500');
+
+            if (autoPlayCheck.checked && currentIndex < deck.length - 1) {
+                const interval = parseInt(intervalRange.value) * 1000;
+                statusText.innerText = `自動送り待機中 (${interval/1000}秒)`;
+                autoPlayTimer = setTimeout(() => {
+                    readNextCard();
+                }, interval);
+            }
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
