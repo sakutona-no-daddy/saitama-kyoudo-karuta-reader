@@ -26,6 +26,12 @@
             border: 8px solid #374151;
             border-radius: 12px;
             position: relative;
+            transition: all 0.3s ease;
+        }
+        /* 読み上げ中は枠線に色をつける */
+        .speaking-border {
+            border-color: #4f46e5 !important; /* indigo-600 */
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.3);
         }
         .kimariji-large {
             position: absolute;
@@ -42,6 +48,20 @@
             align-items: center;
             justify-content: center;
             background-color: #fff;
+            z-index: 10;
+        }
+        /* スマホ向け調整 */
+        @media (max-width: 640px) {
+            .yomifuda-container {
+                min-height: 200px;
+            }
+            .kimariji-large {
+                width: 50px;
+                height: 50px;
+                font-size: 1.8rem;
+                top: 10px;
+                right: 10px;
+            }
         }
     </style>
 </head>
@@ -52,30 +72,45 @@
     </header>
 
     <!-- Audio Loader Section -->
-    <div class="w-full max-w-lg bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 text-sm">
+    <div class="w-full max-w-lg bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6 text-sm shadow-sm">
         <h2 class="font-bold text-indigo-800 mb-2 flex items-center">
             <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
             読み上げ音声の設定
         </h2>
         <p class="mb-3 text-gray-600">
-            VOICEVOXで書き出した音声ファイル(.wav/.mp3)を読み込むと、その声で再生します。<br>
+            VOICEVOX等で書き出した音声ファイルを読み込んでください。<br>
             <span class="text-xs text-gray-500">※未設定の場合は機械音声で読み上げます。</span>
         </p>
         
-        <label class="block w-full cursor-pointer bg-white border-2 border-dashed border-indigo-300 hover:border-indigo-500 rounded-lg p-4 text-center transition">
-            <span class="text-indigo-600 font-bold">📂 音声フォルダ/ファイルを選択</span>
-            <input type="file" id="audioFolderInput" class="hidden" webkitdirectory multiple />
-        </label>
-        <div id="fileStatus" class="mt-2 text-xs text-center text-gray-500 font-bold">
-            音声ファイル: 未ロード
+        <div class="grid grid-cols-2 gap-3 mb-2">
+            <!-- フォルダごと選択ボタン -->
+            <label class="cursor-pointer bg-white border-2 border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 rounded-lg p-3 text-center transition group flex flex-col items-center justify-center">
+                <span class="text-2xl mb-1">📂</span>
+                <span class="text-indigo-600 font-bold text-xs md:text-sm group-hover:text-indigo-800">フォルダを選択</span>
+                <span class="text-[10px] text-gray-400">PC推奨</span>
+                <input type="file" id="audioFolderInput" class="hidden" webkitdirectory multiple />
+            </label>
+
+            <!-- ファイル選択ボタン -->
+            <label class="cursor-pointer bg-white border-2 border-dashed border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50 rounded-lg p-3 text-center transition group flex flex-col items-center justify-center">
+                <span class="text-2xl mb-1">🎵</span>
+                <span class="text-indigo-600 font-bold text-xs md:text-sm group-hover:text-indigo-800">ファイルを選択</span>
+                <span class="text-[10px] text-gray-400">スマホ・個別</span>
+                <!-- accept属性で .wav .mp3 を明示的に許可 -->
+                <input type="file" id="audioFileInput" class="hidden" multiple accept=".wav,.mp3,.ogg,.m4a,audio/*" />
+            </label>
+        </div>
+
+        <div id="fileStatus" class="mt-2 text-xs text-center text-gray-500 font-bold min-h-[1.5em]">
+            音声ファイル: 未ロード (機械音声を使用)
         </div>
     </div>
 
     <main class="w-full max-w-lg">
         <!-- Card Display -->
-        <div id="displayArea" class="yomifuda-container card-shadow p-6 mb-6 relative transition-all duration-300">
-            <div id="kimarijiDisplay" class="kimariji-large opacity-0">?</div>
-            <div id="textDisplay" class="text-2xl md:text-3xl font-bold text-center leading-relaxed tracking-wider px-2">
+        <div id="displayArea" class="yomifuda-container card-shadow p-6 mb-6">
+            <div id="kimarijiDisplay" class="kimariji-large opacity-0 transition-opacity duration-300">?</div>
+            <div id="textDisplay" class="text-2xl md:text-3xl font-bold text-center leading-relaxed tracking-wider px-2 break-words">
                 準備完了
             </div>
             <div id="subTextDisplay" class="text-sm text-gray-500 mt-6 absolute bottom-4">
@@ -85,40 +120,43 @@
 
         <!-- Controls -->
         <div class="bg-white p-5 rounded-xl card-shadow mb-6">
-            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-                <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full" style="width: 0%"></div>
+            <!-- Progress Bar -->
+            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-4 overflow-hidden">
+                <div id="progressBar" class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
             </div>
-            <div class="flex justify-between text-sm text-gray-500 mb-4">
-                <span id="counter">0 / 46 枚</span>
-                <span id="statusText">待機中</span>
+            <div class="flex justify-between text-sm text-gray-500 mb-4 font-feature-settings-palt">
+                <span id="counter" class="font-bold">0 / 46 枚</span>
+                <span id="statusText" class="font-bold text-indigo-600">待機中</span>
             </div>
 
+            <!-- Main Buttons -->
             <div class="grid grid-cols-2 gap-4 mb-4">
-                <button id="nextBtn" onclick="readNextCard()" class="col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg text-lg shadow-lg transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                <button id="nextBtn" onclick="readNextCard()" class="col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-lg text-lg shadow-md transition transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
                     読み上げ開始
                 </button>
-                <button id="replayBtn" onclick="replayCard()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg shadow transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                    もう一度聞く
+                <button id="replayBtn" onclick="replayCard()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-4 rounded-lg shadow transition active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    もう一度
                 </button>
-                <button onclick="resetGame()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg shadow transition">
+                <button onclick="confirmReset()" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg shadow transition active:translate-y-0.5">
                     リセット
                 </button>
             </div>
 
-            <div class="flex items-center justify-between border-t pt-4">
-                <label class="flex items-center cursor-pointer select-none">
-                    <input type="checkbox" id="readTwiceCheck" class="form-checkbox h-5 w-5 text-indigo-600 rounded">
+            <!-- Settings -->
+            <div class="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 pt-4 gap-4">
+                <label class="flex items-center cursor-pointer select-none hover:bg-gray-50 p-2 rounded transition w-full sm:w-auto">
+                    <input type="checkbox" id="readTwiceCheck" class="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
                     <span class="ml-2 text-gray-700 font-medium">2回読む</span>
                 </label>
                 
-                <div class="flex flex-col items-end">
-                    <label class="flex items-center cursor-pointer select-none mb-1">
-                        <input type="checkbox" id="autoPlayCheck" class="form-checkbox h-4 w-4 text-green-600 rounded">
-                        <span class="ml-2 text-gray-700 text-sm">自動送り</span>
+                <div class="flex flex-col items-end w-full sm:w-auto">
+                    <label class="flex items-center cursor-pointer select-none mb-2 hover:bg-gray-50 p-1 rounded transition w-full sm:w-auto justify-end">
+                        <input type="checkbox" id="autoPlayCheck" class="form-checkbox h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500">
+                        <span class="ml-2 text-gray-700 text-sm font-bold">自動送り</span>
                     </label>
-                    <div class="flex items-center">
-                        <span class="text-xs text-gray-500 mr-2">間隔: <span id="intervalDisplay">3</span>秒</span>
-                        <input type="range" id="intervalRange" min="2" max="10" step="1" value="3" class="w-20" disabled>
+                    <div class="flex items-center bg-gray-50 px-3 py-1 rounded-full">
+                        <span class="text-xs text-gray-500 mr-2 whitespace-nowrap">間隔: <span id="intervalDisplay" class="font-bold text-gray-700">3</span>秒</span>
+                        <input type="range" id="intervalRange" min="2" max="10" step="1" value="3" class="w-24 accent-indigo-600 cursor-pointer" disabled>
                     </div>
                 </div>
             </div>
@@ -126,14 +164,17 @@
 
         <!-- History -->
         <div class="bg-white p-4 rounded-xl card-shadow">
-            <h3 class="font-bold text-gray-700 mb-2 border-b pb-1">読まれた札</h3>
-            <div id="historyList" class="flex flex-wrap gap-2 text-lg min-h-[50px]">
+            <h3 class="font-bold text-gray-700 mb-3 border-b pb-2 flex items-center justify-between">
+                <span>読まれた札</span>
+                <span class="text-xs font-normal text-gray-400">新しい順</span>
+            </h3>
+            <div id="historyList" class="flex flex-wrap gap-2 text-lg max-h-[150px] overflow-y-auto">
                 <span class="text-gray-400 text-sm py-2">履歴はここに表示されます</span>
             </div>
         </div>
     </main>
 
-    <footer class="mt-8 text-gray-500 text-xs text-center pb-8">
+    <footer class="mt-8 text-gray-400 text-xs text-center pb-8">
         &copy; Saitama Kyodo Karuta Reader<br>
         データ出典: 彩の国21世紀郷土かるた
     </footer>
@@ -212,20 +253,28 @@
         const autoPlayCheck = document.getElementById('autoPlayCheck');
         const intervalRange = document.getElementById('intervalRange');
         const intervalDisplay = document.getElementById('intervalDisplay');
+        
+        // 2つの入力要素を取得
         const audioFolderInput = document.getElementById('audioFolderInput');
+        const audioFileInput = document.getElementById('audioFileInput');
         const fileStatus = document.getElementById('fileStatus');
 
         function init() {
             resetGame();
 
-            // Audio file loader
+            // 両方のインプットに同じハンドラを割り当て
             audioFolderInput.addEventListener('change', handleFileSelect);
+            audioFileInput.addEventListener('change', handleFileSelect);
 
             // Auto play settings
             autoPlayCheck.addEventListener('change', (e) => {
                 intervalRange.disabled = !e.target.checked;
-                if (!e.target.checked && autoPlayTimer) {
-                    clearTimeout(autoPlayTimer);
+                // intervalRangeのスタイルを更新
+                if(e.target.checked) {
+                    intervalRange.classList.remove('opacity-50');
+                } else {
+                    intervalRange.classList.add('opacity-50');
+                    if (autoPlayTimer) clearTimeout(autoPlayTimer);
                 }
             });
             
@@ -248,6 +297,9 @@
             audioBlobs = {};
 
             Array.from(files).forEach(file => {
+                // Ignore non-audio files
+                if (!file.type.startsWith('audio/') && !file.name.match(/\.(wav|mp3|ogg|m4a)$/i)) return;
+
                 const fileName = file.name;
                 // Normalize file name: remove numbers like '001_' and spaces
                 const cleanName = fileName.replace(/^\d+[-_]?/, '').replace(/\s+/g, '');
@@ -287,6 +339,12 @@
             return array;
         }
 
+        function confirmReset() {
+            if (confirm("最初からやり直しますか？")) {
+                resetGame();
+            }
+        }
+
         function resetGame() {
             stopAllAudio();
             deck = shuffle([...karutaData]);
@@ -296,18 +354,22 @@
             textDisplay.innerText = "準備完了";
             textDisplay.classList.remove('text-indigo-900');
             kimarijiDisplay.classList.add('opacity-0');
-            kimarijiDisplay.innerText = "";
+            kimarijiDisplay.innerText = "?";
             subTextDisplay.innerText = "「読み上げ開始」を押してください";
             
             nextBtn.innerText = "読み上げ開始";
+            nextBtn.classList.remove('bg-indigo-500', 'hover:bg-indigo-600');
+            nextBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
             nextBtn.disabled = false;
             replayBtn.disabled = true;
             
             historyList.innerHTML = '<span class="text-gray-400 text-sm py-2">履歴はここに表示されます</span>';
             updateProgress();
             statusText.innerText = "待機中";
+            statusText.classList.remove('text-green-600', 'text-red-600');
             
             clearTimeout(autoPlayTimer);
+            displayArea.classList.remove('speaking-border');
         }
 
         function updateProgress() {
@@ -330,6 +392,7 @@
                 clearTimeout(autoPlayTimer);
             }
             isSpeaking = false;
+            displayArea.classList.remove('speaking-border');
         }
 
         function readNextCard() {
@@ -340,6 +403,8 @@
                 subTextDisplay.innerText = "リセットボタンで最初から";
                 statusText.innerText = "終了";
                 nextBtn.disabled = true;
+                nextBtn.innerText = "終了";
+                nextBtn.classList.add('bg-gray-400');
                 replayBtn.disabled = true;
                 return;
             }
@@ -371,8 +436,9 @@
                 historyList.innerHTML = '';
             }
             const badge = document.createElement('span');
-            badge.className = "inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100 text-indigo-800 font-bold border border-indigo-200 shadow-sm mb-1";
+            badge.className = "inline-flex items-center justify-center w-10 h-10 rounded-full bg-indigo-100 text-indigo-800 font-bold border border-indigo-200 shadow-sm animate-[fadeIn_0.5s_ease-out]";
             badge.innerText = card.kana;
+            // Insert at the beginning
             historyList.prepend(badge);
         }
 
@@ -386,7 +452,8 @@
         function speakCard(card) {
             isSpeaking = true;
             statusText.innerText = "詠み上げ中...";
-            displayArea.classList.add('border-indigo-500');
+            statusText.classList.add('text-green-600');
+            displayArea.classList.add('speaking-border');
 
             const readTwice = readTwiceCheck.checked;
             const audioUrl = audioBlobs[card.kana];
@@ -411,6 +478,7 @@
                         currentAudio = new Audio(url);
                         currentAudio.onended = finishReading;
                         currentAudio.play();
+                        statusText.innerText = "詠み上げ中(2回目)...";
                     }, 1000);
                 } else {
                     finishReading();
@@ -420,22 +488,28 @@
             currentAudio.play().catch(e => {
                 console.error("Playback error:", e);
                 statusText.innerText = "再生エラー";
+                statusText.classList.add('text-red-600');
                 finishReading();
             });
         }
 
         function playWebSpeech(text, readTwice) {
+            // Cancel any previous speech
+            window.speechSynthesis.cancel();
+
             const utter = new SpeechSynthesisUtterance(text);
             utter.lang = 'ja-JP';
             utter.rate = 1.0; 
 
             utter.onend = () => {
                 if (readTwice) {
+                    statusText.innerText = "待機中(2回目)...";
                     autoPlayTimer = setTimeout(() => {
                         const utter2 = new SpeechSynthesisUtterance(text);
                         utter2.lang = 'ja-JP';
                         utter2.onend = finishReading;
                         window.speechSynthesis.speak(utter2);
+                        statusText.innerText = "詠み上げ中(2回目)...";
                     }, 1000);
                 } else {
                     finishReading();
@@ -447,16 +521,25 @@
 
         function finishReading() {
             isSpeaking = false;
-            statusText.innerText = "詠み終わり";
-            subTextDisplay.innerText = "取り終わったら次へ";
-            displayArea.classList.remove('border-indigo-500');
+            displayArea.classList.remove('speaking-border');
+            statusText.classList.remove('text-green-600');
 
-            if (autoPlayCheck.checked && currentIndex < deck.length - 1) {
+            if (currentIndex >= deck.length - 1) {
+                statusText.innerText = "全ての札を読み終わりました";
+                return;
+            }
+
+            if (autoPlayCheck.checked) {
                 const interval = parseInt(intervalRange.value) * 1000;
                 statusText.innerText = `自動送り待機中 (${interval/1000}秒)`;
+                subTextDisplay.innerText = "自動で次の札へ進みます";
+                
                 autoPlayTimer = setTimeout(() => {
                     readNextCard();
                 }, interval);
+            } else {
+                statusText.innerText = "詠み終わり";
+                subTextDisplay.innerText = "取り終わったら次へ";
             }
         }
 
