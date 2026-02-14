@@ -79,7 +79,7 @@
         </h2>
         <p class="mb-3 text-gray-600">
             VOICEVOX等で書き出した音声ファイルを読み込んでください。<br>
-            <span class="text-xs text-gray-500">※未設定の場合は機械音声で読み上げます。</span>
+            <span class="text-xs text-gray-500">※ファイル名に「東北きりたん」などが入っていても、読み札の最初の文字が含まれていれば自動認識します。</span>
         </p>
         
         <div class="grid grid-cols-2 gap-3 mb-2">
@@ -300,18 +300,32 @@
                 // Ignore non-audio files
                 if (!file.type.startsWith('audio/') && !file.name.match(/\.(wav|mp3|ogg|m4a)$/i)) return;
 
-                const fileName = file.name;
-                // Normalize file name: remove numbers like '001_' and spaces
-                const cleanName = fileName.replace(/^\d+[-_]?/, '').replace(/\s+/g, '');
+                const originalName = file.name;
+                // Remove spaces/tabs for easier matching
+                const normalizedFileName = originalName.replace(/\s+/g, '');
                 
                 // Find matching card
                 const match = karutaData.find(card => {
-                    const cleanReading = card.reading.replace(/\s+/g, '');
-                    // Check if file name starts with the reading (ignoring extensions)
-                    return cleanName.startsWith(cleanReading) || 
-                           cleanName.includes(cleanReading) ||
-                           // Fallback: simple kana match if user renamed files to "あ.wav" etc.
-                           cleanName.startsWith(card.kana + ".");
+                    // Normalize card data
+                    const cleanReading = card.reading.replace(/\s+/g, ''); // "あさつゆに..."
+                    const cleanText = card.text.replace(/\s+/g, ''); // "朝露に..."
+
+                    // MATCHING LOGIC
+                    
+                    // 1. Full reading match (Hiragana)
+                    // Checks if "あさつゆにぬれて..." is in the filename
+                    if (normalizedFileName.includes(cleanReading)) return true;
+
+                    // 2. Partial reading match (First 6 chars) - CRITICAL for VOICEVOX with names
+                    // e.g. "001_Character_あさつゆに..." contains "あさつゆに"
+                    // 6 chars is safe for unique identification
+                    if (normalizedFileName.includes(cleanReading.substring(0, 6))) return true;
+
+                    // 3. Kanji match (VOICEVOX sometimes outputs Kanji filenames)
+                    if (normalizedFileName.includes(cleanText)) return true;
+                    if (normalizedFileName.includes(cleanText.substring(0, 5))) return true;
+
+                    return false;
                 });
 
                 if (match) {
@@ -325,7 +339,9 @@
                 fileStatus.classList.add('animate-pulse');
                 setTimeout(() => fileStatus.classList.remove('animate-pulse'), 1000);
             } else {
-                fileStatus.innerHTML = `<span class="text-red-500">⚠ ファイル名と読み札が一致しませんでした</span>`;
+                // Show the name of the first file that failed to help debugging
+                const exampleFile = files[0].name;
+                fileStatus.innerHTML = `<span class="text-red-500">⚠ 読み込み失敗: ファイル名が一致しません<br><span class="text-[10px] text-gray-500">例: ${exampleFile}</span></span>`;
             }
         }
 
